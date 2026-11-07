@@ -508,7 +508,14 @@
     <string name="settings_network">Network speed</string>
     <string name="settings_network_subtitle">Latency and download diagnostics</string>
     <string name="settings_advanced">Advanced</string>
-    <string name="settings_advanced_subtitle">Performance, navigation, cache, and diagnostics</string>
+    <string name="settings_glass_caption">These settings apply to this device. Changes are saved as you make them.</string>
+    <string name="settings_group_you">YOU</string>
+    <string name="settings_group_look">APPEARANCE</string>
+    <string name="settings_group_watch">WATCHING</string>
+    <string name="settings_group_extras">LIVE &amp; MORE</string>
+    <string name="settings_group_services">SERVICES</string>
+    <string name="settings_group_system">SYSTEM</string>
+<string name="settings_advanced_subtitle">Performance, navigation, cache, and diagnostics</string>
     <string name="experience_mode_essential">Essential</string>
     <string name="experience_mode_advanced">Advanced</string>
     <string name="experience_mode_choose_title">Choose your Nuvio experience</string>

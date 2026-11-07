@@ -23,7 +23,15 @@ object LgMetrics {
     val TileHeight: Dp = 74.dp
 
     val DockWidth: Dp = 922.dp
-    val DockHeight: Dp = 114.dp
+
+    /**
+     * 99dp, not the 114dp first written into SPEC.md: the bar in `lg_home.png` spans y 432-538
+     * of a 1024x576 frame, which is 106 frame px and converts at 0.9375dp/px.
+     */
+    val DockHeight: Dp = 99.dp
+
+    /** Dock icons are the same 127x74 tile as the home grid, not squares. */
+    val DockIconSpacing: Dp = 20.dp
 
     val ScreenPadding: Dp = 40.dp
     val RowSpacing: Dp = 40.dp

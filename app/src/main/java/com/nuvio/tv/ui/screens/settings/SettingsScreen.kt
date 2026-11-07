@@ -69,6 +69,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.AbsoluteAlignment
@@ -82,6 +83,8 @@ import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Color
+import androidx.tv.material3.Text
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -236,6 +239,9 @@ fun SettingsScreen(
             visibleSections.firstOrNull()?.category ?: SettingsCategory.APPEARANCE
         )
     }
+    // The reference settings screen is a single column: the root lists the categories, and
+    // opening one replaces that list in place with the category's own rows.
+    var categoryOpen by rememberSaveable { mutableStateOf(false) }
     val railFocusRequesters = remember(visibleSections) {
         visibleSections.associate { it.category to FocusRequester() }
     }
@@ -376,13 +382,21 @@ fun SettingsScreen(
     // Back inside the options pane returns to the category rail before it leaves settings, the
     // way back inside a row returns to the start of that row. Anything the pane declares itself,
     // such as the integrations sub sections, composes later and so is asked first.
-    BackHandler(enabled = detailHasFocus) {
-        // Cleared up front rather than after the request. The rail reports its own focus a frame
-        // later, and until it does a second quick press would be consumed here again instead of
-        // leaving settings. The result of the request is deliberately not read: either way this
-        // press was the step back, and with the flag already cleared the next one carries on out.
+    BackHandler(enabled = categoryOpen) {
+        // Back inside a category returns to the root list instead of leaving settings: the
+        // reference keeps every category on that one column, so that list is the parent screen.
+        categoryOpen = false
         detailHasFocus = false
-        focusRailCategory(railFocusCategory)
+    }
+
+    // The root list is only composed again once a category closes, so its focus requesters are
+    // not attached on the frame the flag flips. Ask after that frame, otherwise the restore
+    // lands on nothing and the D-pad has no starting point.
+    LaunchedEffect(categoryOpen) {
+        if (!categoryOpen) {
+            withFrameNanos { }
+            focusRailCategory(railFocusCategory)
+        }
     }
 
     val focusManager = LocalFocusManager.current
@@ -427,20 +441,33 @@ fun SettingsScreen(
         pendingContentFocusCategory = null
     }
 
+    GlassSettingsTheme {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(NuvioTheme.colors.Background)
-            .padding(
-                start = NuvioTheme.spacing.xxl,
-                end = NuvioTheme.spacing.xxl,
-                top = if (showBuiltInHeader) NuvioTheme.spacing.xl else 68.dp,
-                bottom = NuvioTheme.spacing.xl
-            )
+            .background(GlassSettingsTokens.Backdrop)
     ) {
-        SettingsWorkspaceSurface(
+        // The reference puts the screen title dead centre at the crown, above both columns.
+        Text(
+            text = stringResource(R.string.nav_settings),
+            style = GlassSettingsTokens.TitleStyle,
+            color = Color.White,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .padding(top = GlassSettingsTokens.TitleTop)
+        )
+        Box(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(
+                    start = GlassSettingsTokens.LeftPanelStart,
+                    // The reference column ends at x 916dp on the 960dp grid.
+                    end = 48.dp,
+                    top = GlassSettingsTokens.ContentTop,
+                    bottom = GlassSettingsTokens.ContentBottom
+                )
         ) {
 
             val onSectionClick: (SettingsSectionSpec) -> Unit = { section ->
@@ -461,6 +488,7 @@ fun SettingsScreen(
                         integrationHubReturnSection = IntegrationSettingsSection.Hub
                     }
                     allowDetailAutofocus = true
+                    categoryOpen = true
                     selectedCategory = section.category
                     pendingContentFocusCategory = section.category
                     pendingContentFocusRequestId += 1L
@@ -690,15 +718,53 @@ fun SettingsScreen(
                     }
                 }
             } else {
+            // Reference layout: icon + caption on the left, ONE 388dp column of pills on the
+            // right. At the root that column is the category list; opening a category swaps its
+            // contents for the category's own rows, the way tvOS drills in. Keeping the rail in
+            // that same column is what makes this one column instead of two.
             Row(
                 modifier = Modifier.fillMaxSize(),
-                horizontalArrangement = Arrangement.spacedBy(NuvioTheme.spacing.lg)
+                horizontalArrangement = Arrangement.spacedBy(0.dp)
             ) {
+                GlassSettingsIdentityPanel(
+                    caption = glassSettingsCaption(selectedCategory),
+                    modifier = Modifier.weight(1f)
+                )
                 Box(
                     modifier = Modifier
-                        .width(220.dp)
+                        .width(GlassSettingsTokens.ColumnWidth)
                         .fillMaxHeight()
                 ) {
+                    if (categoryOpen) {
+                        SettingsDetailPane(
+                            selectedCategory = selectedCategory,
+                            isEssentialMode = isEssentialMode,
+                            allowDetailAutofocus = allowDetailAutofocus,
+                            contentFocusRequesters = contentFocusRequesters,
+                            experienceModeViewModel = experienceModeViewModel,
+                            integrationSection = integrationSection,
+                            onSelectIntegrationSection = { section ->
+                                if (section != IntegrationSettingsSection.Hub) {
+                                    integrationHubReturnSection = section
+                                }
+                                integrationSection = section
+                            },
+                            integrationHubReturnSection = integrationHubReturnSection,
+                            integrationHubFocusRequester = integrationHubFocusRequester,
+                            integrationDebridFocusRequester = integrationDebridFocusRequester,
+                            integrationTmdbFocusRequester = integrationTmdbFocusRequester,
+                            integrationMdbListFocusRequester = integrationMdbListFocusRequester,
+                            integrationAnimeSkipFocusRequester = integrationAnimeSkipFocusRequester,
+                            onNavigateToManageProfiles = onNavigateToManageProfiles,
+                            onNavigateToAddons = onNavigateToAddons,
+                            onNavigateToPlugins = onNavigateToPlugins,
+                            onNavigateToAuthQrSignIn = onNavigateToAuthQrSignIn,
+                            onNavigateToSupportersContributors = onNavigateToSupportersContributors,
+                            onNavigateToLicensesAttributions = onNavigateToLicensesAttributions,
+                            onNavigateToWatchParty = onNavigateToWatchParty,
+                            onNavigateToSportsTeams = onNavigateToSportsTeams
+                        )
+                    } else {
                     LazyColumn(
                         state = railListState,
                         modifier = Modifier
@@ -752,15 +818,20 @@ fun SettingsScreen(
                                     false
                                 }
                             },
-                        verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically)
+                        verticalArrangement = Arrangement.Top
                     ) {
                         itemsIndexed(
                             items = visibleSections,
                             key = { _, section -> section.category }
                         ) { index, section ->
                             Column {
-                                if (visibleCategories.startsNewGroup(index)) {
-                                    SettingsRailDivider()
+                                if (index == 0 || visibleCategories.startsNewGroup(index)) {
+                                    GlassSettingsSectionHeader(
+                                        label = glassGroupLabel(section.category.group),
+                                        // The reference opens a wide gap between groups and a
+                                        // tighter one above the very first label.
+                                        topPadding = if (index == 0) 6.dp else 26.dp
+                                    )
                                 }
                                 SettingsRailButton(
                                     onFocused = {
@@ -792,66 +863,40 @@ fun SettingsScreen(
                             }
                         }
                     }
-                    SettingsVerticalScrollIndicators(state = railListState)
-                }
+                    }
 
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .onKeyEvent { event ->
-                            val toRailKey = if (isRtl) Key.DirectionRight else Key.DirectionLeft
-                            if (event.type == KeyEventType.KeyDown && event.key == toRailKey) {
-                                val movedLeft = focusManager.moveFocus(if (isRtl) FocusDirection.Right else FocusDirection.Left)
-                                if (!movedLeft) {
-                                    allowDetailAutofocus = false
-                                    focusRailCategory(railFocusCategory)
-                                }
-                                true
-                            } else {
-                                false
-                            }
-                        }
-                        .onFocusChanged { state ->
-                            detailHasFocus = state.hasFocus
-                            if (state.hasFocus && !allowDetailAutofocus) {
-                                focusRailCategory(railFocusCategory)
-                            }
-                        }
-                ) {
-                    SettingsDetailPane(
-                        selectedCategory = selectedCategory,
-                        isEssentialMode = isEssentialMode,
-                        allowDetailAutofocus = allowDetailAutofocus,
-                        contentFocusRequesters = contentFocusRequesters,
-                        experienceModeViewModel = experienceModeViewModel,
-                        integrationSection = integrationSection,
-                        onSelectIntegrationSection = { section ->
-                            if (section != IntegrationSettingsSection.Hub) {
-                                integrationHubReturnSection = section
-                            }
-                            integrationSection = section
-                        },
-                        integrationHubReturnSection = integrationHubReturnSection,
-                        integrationHubFocusRequester = integrationHubFocusRequester,
-                        integrationDebridFocusRequester = integrationDebridFocusRequester,
-                        integrationTmdbFocusRequester = integrationTmdbFocusRequester,
-                        integrationMdbListFocusRequester = integrationMdbListFocusRequester,
-                        integrationAnimeSkipFocusRequester = integrationAnimeSkipFocusRequester,
-                        onNavigateToManageProfiles = onNavigateToManageProfiles,
-                        onNavigateToAddons = onNavigateToAddons,
-                        onNavigateToPlugins = onNavigateToPlugins,
-                        onNavigateToAuthQrSignIn = onNavigateToAuthQrSignIn,
-                        onNavigateToSupportersContributors = onNavigateToSupportersContributors,
-                        onNavigateToLicensesAttributions = onNavigateToLicensesAttributions,
-                        onNavigateToWatchParty = onNavigateToWatchParty,
-                        onNavigateToSportsTeams = onNavigateToSportsTeams
-                    )
                 }
             }
             }
         }
     }
+    }
+}
+
+@Composable
+private fun glassGroupLabel(group: SettingsRailGroup): String = stringResource(
+    when (group) {
+        SettingsRailGroup.YOU -> R.string.settings_group_you
+        SettingsRailGroup.LOOK -> R.string.settings_group_look
+        SettingsRailGroup.WATCH -> R.string.settings_group_watch
+        SettingsRailGroup.EXTRAS -> R.string.settings_group_extras
+        SettingsRailGroup.SERVICES -> R.string.settings_group_services
+        SettingsRailGroup.SYSTEM -> R.string.settings_group_system
+    }
+)
+
+/**
+ * The caption under the app icon on the left of the reference settings screen. tvOS puts a
+ * sentence about the current page there, so this reuses the subtitles the panes already carry
+ * and falls back to a general one for categories that never wrote a subtitle.
+ */
+@Composable
+private fun glassSettingsCaption(category: SettingsCategory): String = when (category) {
+    SettingsCategory.CONTENT_DISCOVERY -> stringResource(R.string.settings_content_discovery_subtitle)
+    SettingsCategory.TRACKING -> stringResource(R.string.settings_tracking_description)
+    SettingsCategory.ADVANCED -> stringResource(R.string.settings_advanced_subtitle)
+    SettingsCategory.ABOUT -> stringResource(R.string.about_subtitle)
+    else -> stringResource(R.string.settings_glass_caption)
 }
 
 @Composable

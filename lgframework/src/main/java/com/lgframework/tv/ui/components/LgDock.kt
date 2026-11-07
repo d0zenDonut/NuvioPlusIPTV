@@ -48,10 +48,11 @@ fun LgDock(
     apps: List<LgApp>,
     modifier: Modifier = Modifier,
     tier: LgTier = LgCapabilities.tier,
-    itemSpacing: Dp = 26.dp,
-    iconSize: Dp = 64.dp,
+    itemSpacing: Dp = LgMetrics.DockIconSpacing,
+    iconWidth: Dp = LgMetrics.TileWidth,
+    iconHeight: Dp = LgMetrics.TileHeight,
     onAppClick: (LgApp) -> Unit = {},
-    icon: (@Composable (LgApp, Dp) -> Unit)? = null,
+    icon: (@Composable (LgApp, Dp, Dp) -> Unit)? = null,
 ) {
     Box(
         modifier = modifier.size(LgMetrics.DockWidth, LgMetrics.DockHeight),
@@ -77,7 +78,8 @@ fun LgDock(
             apps.forEach { app ->
                 LgDockItem(
                     app = app,
-                    iconSize = iconSize,
+                    iconWidth = iconWidth,
+                    iconHeight = iconHeight,
                     onClick = { onAppClick(app) },
                     icon = icon,
                 )
@@ -93,10 +95,11 @@ fun LgDock(
 private fun LgDockItem(
     app: LgApp,
     modifier: Modifier = Modifier,
-    iconSize: Dp = 64.dp,
+    iconWidth: Dp = LgMetrics.TileWidth,
+    iconHeight: Dp = LgMetrics.TileHeight,
     onClick: () -> Unit = {},
     onFocusChange: (Boolean) -> Unit = {},
-    icon: (@Composable (LgApp, Dp) -> Unit)? = null,
+    icon: (@Composable (LgApp, Dp, Dp) -> Unit)? = null,
 ) {
     var focused by remember { mutableStateOf(false) }
 
@@ -111,7 +114,7 @@ private fun LgDockItem(
 
     Box(
         modifier = modifier
-            .size(iconSize)
+            .size(iconWidth, iconHeight)
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
@@ -126,12 +129,12 @@ private fun LgDockItem(
         contentAlignment = Alignment.Center,
     ) {
         if (icon != null) {
-            icon(app, iconSize)
+            icon(app, iconWidth, iconHeight)
         } else {
             LgAppGlyph(
                 tint = app.tint,
                 initial = app.initial,
-                size = iconSize,
+                size = iconHeight,
             )
         }
     }

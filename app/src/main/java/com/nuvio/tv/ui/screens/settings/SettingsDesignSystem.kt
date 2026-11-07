@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -73,6 +74,15 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
+import androidx.tv.material3.darkColorScheme
+import com.nuvio.tv.ui.theme.LocalNuvioColors
+import com.nuvio.tv.ui.theme.LocalNuvioExtendedColors
+import com.nuvio.tv.ui.theme.NuvioColorScheme
+import com.nuvio.tv.ui.theme.NuvioExtendedColors
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -111,6 +121,103 @@ internal val SettingsZenRowShape = RoundedCornerShape(12.dp)
 internal val SettingsHorizonRowShape = RoundedCornerShape(10.dp)
 internal val SettingsHorizonGroupShape = RoundedCornerShape(16.dp)
 
+/**
+ * tvOS-27 settings metrics, measured off `docs/refs/frames/lg_settings_top.png`.
+ *
+ * The reference settings screen is LIGHT: lavender-violet backdrop, near-black labels, 20%
+ * white pills and a solid white focused pill. Frame px convert at 0.9375dp (a 1024px frame of
+ * the 960x540dp grid), which is where every number below comes from.
+ */
+internal object GlassSettingsTokens {
+
+    /** The single control column: x 528 -> 916dp on the 960dp grid. */
+    val ColumnWidth: Dp = 388.dp
+
+    /** Row geometry: 37dp tall, 8dp apart (45dp pitch), radius = height / 2. */
+    val RowHeight: Dp = 37.dp
+    val RowGap: Dp = 8.dp
+    val RowTextInset: Dp = 16.dp
+
+    /** 20% white over the lavender reads 203,202,217 against a 190,188,211 backdrop. */
+    val RowFill = Color.White.copy(alpha = 0.20f)
+    val RowFocusedFill = Color.White
+
+    val LabelFocused = Color(0xFF0E0E10)
+    val Value = Color(0xFF6E6A78)
+    val ValueFocused = Color(0xFF8E8E93)
+    val SectionHeader = Color(0xFF8A8494)
+    val Caption = Color(0xFF55505F)
+
+    /** Backdrop: the reference crown is brighter than its floor. */
+    val Backdrop = Brush.verticalGradient(
+        listOf(Color(0xFFCBC6D9), Color(0xFFB3ADC6))
+    )
+
+    val TitleTop = 34.dp
+    val ContentTop = 64.dp
+    val LeftPanelStart = 40.dp
+    val ContentBottom = 26.dp
+    val IconCardWidth = 200.dp
+    val IconCardHeight = 103.dp
+    val SectionLabelTop = 14.dp
+    val SectionLabelBottom = 6.dp
+
+    val LabelStyle = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Medium)
+    val ValueStyle = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Normal)
+    val SectionStyle = TextStyle(
+        fontSize = 10.sp,
+        fontWeight = FontWeight.Medium,
+        letterSpacing = 1.4.sp
+    )
+    val CaptionStyle = TextStyle(fontSize = 12.sp, lineHeight = 16.sp)
+    val TitleStyle = TextStyle(fontSize = 30.sp, fontWeight = FontWeight.SemiBold)
+}
+
+/**
+ * Puts the settings shell on the light glass scheme.
+ *
+ * Everything below keeps reading `NuvioTheme.colors`, so no screen had to learn about a second
+ * palette: the scheme itself is constructed in light mode and provided here.
+ */
+@Composable
+internal fun GlassSettingsTheme(content: @Composable () -> Unit) {
+    val palette = NuvioTheme.palette
+    val scheme = remember(palette) { NuvioColorScheme(palette, lightMode = true) }
+    val extended = remember(scheme) {
+        NuvioExtendedColors(
+            backgroundElevated = scheme.BackgroundElevated,
+            backgroundCard = scheme.BackgroundCard,
+            textSecondary = scheme.TextSecondary,
+            textTertiary = scheme.TextTertiary,
+            focusRing = scheme.FocusRing,
+            focusBackground = scheme.FocusBackground,
+            rating = scheme.Rating
+        )
+    }
+    val typography = MaterialTheme.typography
+    val materialScheme = darkColorScheme(
+        primary = scheme.Primary,
+        onPrimary = scheme.OnPrimary,
+        secondary = scheme.Secondary,
+        onSecondary = scheme.OnSecondary,
+        background = scheme.Background,
+        surface = scheme.BackgroundElevated,
+        onBackground = scheme.TextPrimary,
+        onSurface = scheme.TextPrimary,
+        onSurfaceVariant = scheme.TextSecondary
+    )
+    CompositionLocalProvider(
+        LocalNuvioColors provides scheme,
+        LocalNuvioExtendedColors provides extended
+    ) {
+        MaterialTheme(
+            colorScheme = materialScheme,
+            typography = typography,
+            content = content
+        )
+    }
+}
+
 @Composable
 @androidx.compose.runtime.ReadOnlyComposable
 internal fun settingsGroupShape(): RoundedCornerShape =
@@ -139,7 +246,7 @@ internal fun isFlatSettingsStyle(): Boolean = NuvioTheme.settingsUiStyle != Sett
 
 @Composable
 @androidx.compose.runtime.ReadOnlyComposable
-internal fun settingsFocusFillColor(): Color = NuvioTheme.colors.TextPrimary.copy(alpha = 0.1f)
+internal fun settingsFocusFillColor(): Color = GlassSettingsTokens.RowFocusedFill
 
 @Composable
 @androidx.compose.runtime.ReadOnlyComposable
@@ -174,10 +281,11 @@ internal fun settingsRowColors(): CardColors = if (isFlatSettingsStyle()) {
     )
 } else {
     CardDefaults.colors(
-        // Translucent plate: the settings shell sits over the wallpaper, so the surface has to
-        // let it through the way the reference glass does.
-        containerColor = NuvioTheme.colors.Background.copy(alpha = 0.55f),
-        focusedContainerColor = NuvioTheme.colors.Background.copy(alpha = 0.72f)
+        // Reference rows are 20% white pills over the lavender backdrop; the focused row is a
+        // solid white pill, not a brighter plate. Sampling the frame gives 203,202,217 inside
+        // an unfocused row against a 190,188,211 backdrop.
+        containerColor = GlassSettingsTokens.RowFill,
+        focusedContainerColor = GlassSettingsTokens.RowFocusedFill
     )
 }
 
@@ -185,16 +293,7 @@ internal fun settingsRowColors(): CardColors = if (isFlatSettingsStyle()) {
 internal fun settingsRowBorder(
     contentAlpha: Float = 1f,
     shape: Shape = settingsRowShape()
-): CardBorder = if (isFlatSettingsStyle()) {
-    CardDefaults.border(border = Border.None, focusedBorder = Border.None)
-} else {
-    CardDefaults.border(
-        focusedBorder = Border(
-            border = NuvioTheme.focusRing.border(NuvioTheme.spacing.xxs, alpha = contentAlpha),
-            shape = shape
-        )
-    )
-}
+): CardBorder = CardDefaults.border(border = Border.None, focusedBorder = Border.None)
 
 internal object SettingsTestTags {
     const val ROW_ICON = "settings_row_icon"
@@ -380,7 +479,8 @@ internal fun SettingsRailButton(
 ) {
     var isFocused by remember { mutableStateOf(false) }
     val zen = isFlatSettingsStyle()
-    val railShape = if (zen) SettingsZenRowShape else RoundedCornerShape(SettingsPillRadius)
+    // Reference rows are full capsules: radius = half the 37dp height.
+    val railShape: Shape = LgShapes.Capsule
     val appliedModifier = if (focusRequester != null) {
         modifier.focusRequester(focusRequester)
     } else {
@@ -391,9 +491,9 @@ internal fun SettingsRailButton(
     Card(
         onClick = onClick,
         modifier = appliedModifier
-            .padding(top = NuvioTheme.spacing.xxs, bottom = NuvioTheme.spacing.xxs)
+            .padding(vertical = GlassSettingsTokens.RowGap / 2)
             .fillMaxWidth()
-            .heightIn(min = SettingsRailItemHeight)
+            .heightIn(min = GlassSettingsTokens.RowHeight)
             .onFocusChanged { state ->
                 val nowFocused = state.isFocused
                 if (isFocused != nowFocused) {
@@ -407,40 +507,23 @@ internal fun SettingsRailButton(
                 this.selected = isSelected
             },
         colors = CardDefaults.colors(
-            containerColor = when {
-                zen -> Color.Transparent
-                showSelected -> NuvioTheme.colors.BackgroundCard
-                else -> NuvioTheme.colors.Background
-            },
-            focusedContainerColor = if (zen) settingsFocusFillColor() else NuvioTheme.colors.BackgroundCard
+            containerColor = GlassSettingsTokens.RowFill,
+            focusedContainerColor = GlassSettingsTokens.RowFocusedFill
         ),
-        border = if (zen) {
-            CardDefaults.border(border = Border.None, focusedBorder = Border.None)
-        } else {
-            CardDefaults.border(
-                border = if (showSelected) Border(
-                    border = NuvioTheme.focusRing.border(NuvioTheme.spacing.hairline),
-                    shape = RoundedCornerShape(SettingsPillRadius)
-                ) else Border.None,
-                focusedBorder = Border(
-                    border = NuvioTheme.focusRing.border(NuvioTheme.spacing.xxs),
-                    shape = RoundedCornerShape(SettingsPillRadius)
-                )
-            )
-        },
+        border = CardDefaults.border(border = Border.None, focusedBorder = Border.None),
         shape = CardDefaults.shape(railShape),
         scale = CardDefaults.scale(focusedScale = 1f, pressedScale = 1f)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = SettingsRailItemHeight),
+                .heightIn(min = GlassSettingsTokens.RowHeight),
             contentAlignment = Alignment.CenterStart
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = if (zen) 14.dp else 18.dp),
+                    .padding(horizontal = GlassSettingsTokens.RowTextInset),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -448,62 +531,101 @@ internal fun SettingsRailButton(
                     modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (zen) {
-                        Box(
-                            modifier = Modifier
-                                .width(3.dp)
-                                .height(16.dp)
-                                .clip(RoundedCornerShape(SettingsPillRadius))
-                                .background(
-                                    if (showSelected) NuvioTheme.colors.Secondary else Color.Transparent
-                                )
-                        )
-                        Spacer(modifier = Modifier.width(NuvioTheme.spacing.md))
-                    }
-                    if (rawIconRes != null) {
-                        Image(
-                            painter = rememberRawSvgPainter(rawIconRes),
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                            contentScale = ContentScale.Fit,
-                            colorFilter = ColorFilter.tint(
-                                if (isSelected || isFocused) NuvioTheme.colors.TextPrimary else NuvioTheme.colors.TextSecondary
-                            )
-                        )
-                    } else if (icon != null) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = if (isSelected || isFocused) NuvioTheme.colors.TextPrimary else NuvioTheme.colors.TextSecondary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-
-                    if (rawIconRes != null || icon != null) {
-                        Spacer(modifier = Modifier.width(10.dp))
-                    }
-
                     FocusMarqueeText(
                         text = title,
                         focused = isFocused,
                         modifier = Modifier.clearAndSetSemantics {},
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = if (isSelected || isFocused) FontWeight.SemiBold else FontWeight.Medium
-                        ),
-                        color = if (isSelected || isFocused) NuvioTheme.colors.TextPrimary else NuvioTheme.colors.TextSecondary,
+                        style = GlassSettingsTokens.LabelStyle,
+                        color = NuvioTheme.colors.TextPrimary,
                     )
                 }
 
-                if (!zen) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = NuvioTheme.colors.TextTertiary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = NuvioTheme.colors.TextTertiary,
+                    modifier = Modifier.size(16.dp)
+                )
             }
         }
+    }
+}
+
+/**
+ * Section label above a group of rows: uppercase, 10sp, wide tracking, violet-grey.
+ * Measured off the reference as `#8A8494` with ~1.4sp tracking, inset with the row text.
+ */
+@Composable
+internal fun GlassSettingsSectionHeader(
+    label: String,
+    modifier: Modifier = Modifier,
+    topPadding: Dp = GlassSettingsTokens.SectionLabelTop
+) {
+    Text(
+        text = label,
+        style = GlassSettingsTokens.SectionStyle,
+        color = GlassSettingsTokens.SectionHeader,
+        maxLines = 1,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(
+                start = GlassSettingsTokens.RowTextInset,
+                end = GlassSettingsTokens.RowTextInset,
+                top = topPadding,
+                bottom = GlassSettingsTokens.SectionLabelBottom
+            )
+    )
+}
+
+/**
+ * Left side of the reference settings screen: the app's icon card, with a centred caption
+ * underneath describing what the rows to the right control.
+ *
+ * The reference puts this column at x 161 -> 361dp and centres it vertically, which is why the
+ * panel is weighted rather than fixed-width: the row column is the fixed 388dp.
+ */
+@Composable
+internal fun GlassSettingsIdentityPanel(
+    caption: String,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.fillMaxHeight(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Reference rhythm: the icon card's centre sits a little above the middle of the screen
+        // and the caption sits low, under a wide gap, rather than hugging the icon.
+        Spacer(Modifier.weight(0.42f))
+        Box(
+            modifier = Modifier
+                .width(GlassSettingsTokens.IconCardWidth)
+                .height(GlassSettingsTokens.IconCardHeight)
+                .clip(LgShapes.glyph(GlassSettingsTokens.IconCardHeight))
+                .background(Color(0xFF0B0B0D)),
+            contentAlignment = Alignment.Center
+        ) {
+            BrandWordmark(
+                contentDescription = stringResource(R.string.cd_nuvio_logo),
+                modifier = Modifier
+                    .fillMaxWidth(0.66f)
+                    .height(34.dp),
+                contentScale = ContentScale.Fit
+            )
+        }
+
+        Spacer(Modifier.weight(0.32f))
+
+        Text(
+            text = caption,
+            style = GlassSettingsTokens.CaptionStyle,
+            color = GlassSettingsTokens.Caption,
+            textAlign = TextAlign.Center,
+            maxLines = 4,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.widthIn(max = 320.dp)
+        )
+
+        Spacer(Modifier.weight(0.26f))
     }
 }
 
@@ -652,21 +774,21 @@ internal fun SettingsDetailHeader(
                 color = NuvioTheme.colors.TextSecondary
             )
         }
-        SettingsUiStyle.CLASSIC -> Column(
-            modifier = modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.headlineMedium,
-                color = NuvioTheme.colors.TextPrimary
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = NuvioTheme.colors.TextSecondary
-            )
-        }
+        SettingsUiStyle.CLASSIC -> Text(
+            // Sub-page heading in the reference is a section label, not a headline: the page's
+            // prose belongs to the caption under the app icon on the left.
+            text = title.uppercase(),
+            style = GlassSettingsTokens.SectionStyle,
+            color = GlassSettingsTokens.SectionHeader,
+            maxLines = 1,
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(
+                    start = GlassSettingsTokens.RowTextInset,
+                    end = GlassSettingsTokens.RowTextInset,
+                    bottom = GlassSettingsTokens.SectionLabelBottom
+                )
+        )
     }
 }
 
@@ -713,31 +835,13 @@ internal fun SettingsGroupCard(
             }
         }
         SettingsUiStyle.CLASSIC -> Column(
-            modifier = modifier
-                .fillMaxWidth()
-                .clip(settingsGroupShape())
-                .background(NuvioTheme.colors.BackgroundCard)
-                .border(
-                    width = NuvioTheme.spacing.hairline,
-                    color = NuvioTheme.colors.Border,
-                    shape = settingsGroupShape()
-                )
-                .padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            // No container: the reference has no group card. Each row is its own pill and the
+            // group title above it is a section label, so the column stays flat on the backdrop.
+            modifier = modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(0.dp)
         ) {
             if (!title.isNullOrBlank()) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = NuvioTheme.colors.TextPrimary
-                )
-            }
-            if (!subtitle.isNullOrBlank()) {
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = NuvioTheme.colors.TextSecondary
-                )
+                GlassSettingsSectionHeader(label = title.uppercase())
             }
             content()
         }
@@ -766,7 +870,7 @@ internal fun SettingsToggleRow(
         },
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 62.dp)
+            .heightIn(min = GlassSettingsTokens.RowHeight)
             .focusProperties { canFocus = enabled }
             .semantics {
                 if (!enabled) disabled()
@@ -788,7 +892,7 @@ internal fun SettingsToggleRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = NuvioTheme.spacing.md),
+                .padding(horizontal = GlassSettingsTokens.RowTextInset, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -877,8 +981,8 @@ internal fun SettingsActionRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 62.dp)
-                .padding(horizontal = 18.dp, vertical = NuvioTheme.spacing.md),
+                .heightIn(min = GlassSettingsTokens.RowHeight)
+                .padding(horizontal = GlassSettingsTokens.RowTextInset, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (leadingRawIconRes != null) {
@@ -1300,15 +1404,17 @@ private fun SettingsTogglePill(
 ) {
     val alpha = if (enabled) 1f else 0.35f
     val zen = isFlatSettingsStyle()
+    // On a white focused pill a white-on-white switch disappears, so the track is drawn in the
+    // scheme's text colour: dark when on, a tint when off.
     val trackColor = when {
         zen && checked -> NuvioTheme.colors.Secondary.copy(alpha = 0.9f * alpha)
-        checked -> NuvioTheme.colors.Secondary.copy(alpha = 0.35f * alpha)
-        else -> NuvioTheme.colors.Border.copy(alpha = alpha)
+        checked -> NuvioTheme.colors.TextPrimary.copy(alpha = 0.90f * alpha)
+        else -> NuvioTheme.colors.TextPrimary.copy(alpha = 0.18f * alpha)
     }
-    val knobColor = if (zen && checked) {
-        NuvioTheme.colors.OnSecondary.copy(alpha = alpha)
-    } else {
+    val knobColor = if (checked) {
         Color.White.copy(alpha = alpha)
+    } else {
+        NuvioTheme.colors.TextPrimary.copy(alpha = 0.55f * alpha)
     }
     Box(
         modifier = Modifier

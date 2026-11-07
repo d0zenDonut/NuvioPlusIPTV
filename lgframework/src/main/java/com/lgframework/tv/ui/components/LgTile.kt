@@ -92,7 +92,7 @@ fun LgTile(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 8.dp),
+                .padding(horizontal = if (showLabel) 8.dp else 0.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {

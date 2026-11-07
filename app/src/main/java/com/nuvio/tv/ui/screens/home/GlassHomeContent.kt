@@ -198,18 +198,18 @@ fun GlassHomeContent(
                     onNavigateToCatalogSeeAll(target.catalogId, target.addonId, target.apiType)
                 }
             },
-            icon = { app, size ->
+            icon = { app, iconWidth, iconHeight ->
                 val art = dockEntries.firstOrNull { it.app.id == app.id }?.art
                 if (art == null) {
-                    LgAppGlyph(tint = app.tint, initial = app.initial, size = size)
+                    LgAppGlyph(tint = app.tint, initial = app.initial, size = iconHeight)
                 } else {
                     AsyncImage(
                         model = art,
                         contentDescription = app.name,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
-                            .size(size)
-                            .clip(LgShapes.glyph(size))
+                            .size(iconWidth, iconHeight)
+                            .clip(LgShapes.Tile)
                     )
                 }
             }
@@ -374,7 +374,9 @@ private fun GlassCatalogRow(
                 LgTile(
                     backdrop = backdrop,
                     app = item.toTileApp(row),
-                    showLabel = true,
+                    // The reference tiles are full-bleed artwork with no caption; the row title
+                    // above already names the row.
+                    showLabel = false,
                     onFocusChange = { focused -> if (focused) onRowFocused() },
                     modifier = Modifier
                         .then(
@@ -390,8 +392,7 @@ private fun GlassCatalogRow(
                             contentDescription = item.name,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .height(38.dp)
+                                .fillMaxSize()
                         )
                     }
                 )

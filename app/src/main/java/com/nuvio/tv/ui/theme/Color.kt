@@ -99,26 +99,96 @@ data class NuvioContrastPair(
     val background: Color
 )
 
+/**
+ * Light key colours for the liquid-glass settings shell, measured off
+ * `docs/refs/frames/lg_settings_top.png` (1024x576 of a 960x540dp grid, so 1 frame px = 0.9375dp).
+ *
+ * They live beside [NuvioColorScheme] rather than in the settings package because the scheme
+ * consumes them; the settings UI only ever reads the scheme.
+ */
+private object GlassLightKeys {
+    /** Lavender-violet backdrop the reference settings screen sits on. */
+    val background = Color(0xFFC8C3D6)
+    val elevated = Color(0x26FFFFFF)
+    val card = Color(0x33FFFFFF)
+    val surface = Color(0x26FFFFFF)
+    val surfaceVariant = Color(0x1FFFFFFF)
+    val panel = Color(0x33FFFFFF)
+    val field = Color(0x1FFFFFFF)
+    val menu = Color(0xF2FFFFFF)
+    val modal = Color(0xF2FFFFFF)
+    val divider = Color(0x1F000000)
+
+    /** Row labels are near-black: the settings screen is a light screen. */
+    val textPrimary = Color(0xFF1A1A1A)
+    val textSecondary = Color(0xFF6E6A78)
+    val textTertiary = Color(0xFF8A8494)
+    val textDisabled = Color(0xFFA9A3B4)
+
+    /** Focus is a filled white pill, not a ring. */
+    val focusRing = Color(0xFFFFFFFF)
+    val focusBackground = Color(0xFFFFFFFF)
+    val focusContent = Color(0xFF1A1A1A)
+}
+
 class NuvioColorScheme(
     palette: ThemeColorPalette,
     amoledMode: Boolean = false,
-    amoledSurfacesMode: Boolean = false
+    amoledSurfacesMode: Boolean = false,
+    /**
+     * Light variant, used by the liquid-glass settings shell.
+     *
+     * tvOS setting screens are LIGHT: a lavender-violet backdrop with near-black labels. No
+     * dark palette can express that, and the scheme's text colours are white by construction,
+     * so the whole scheme can be flipped for that one subtree. It stays opt-in: nothing outside
+     * the settings shell passes this flag, so the rest of the app is untouched.
+     */
+    lightMode: Boolean = false
 ) {
     private val pureBlack = NuvioPrimitives.black
     private val pureBlackSurfaces = amoledMode && amoledSurfacesMode
 
-    val Background = if (amoledMode) pureBlack else palette.background
-    val BackgroundElevated = if (pureBlackSurfaces) pureBlack else palette.backgroundElevated
-    val BackgroundCard = if (pureBlackSurfaces) pureBlack else palette.backgroundCard
-    val Surface = if (pureBlackSurfaces) pureBlack else palette.surface
-    val SurfaceVariant = if (pureBlackSurfaces) pureBlack else palette.surfaceVariant
-    val Panel = if (pureBlackSurfaces) pureBlack else palette.panel
+    val Background = when {
+        lightMode -> GlassLightKeys.background
+        amoledMode -> pureBlack
+        else -> palette.background
+    }
+    val BackgroundElevated =
+        if (lightMode) GlassLightKeys.elevated
+        else if (pureBlackSurfaces) pureBlack
+        else palette.backgroundElevated
+    val BackgroundCard =
+        if (lightMode) GlassLightKeys.card
+        else if (pureBlackSurfaces) pureBlack
+        else palette.backgroundCard
+    val Surface =
+        if (lightMode) GlassLightKeys.surface
+        else if (pureBlackSurfaces) pureBlack
+        else palette.surface
+    val SurfaceVariant =
+        if (lightMode) GlassLightKeys.surfaceVariant
+        else if (pureBlackSurfaces) pureBlack
+        else palette.surfaceVariant
+    val Panel =
+        if (lightMode) GlassLightKeys.panel
+        else if (pureBlackSurfaces) pureBlack
+        else palette.panel
     val Overlay = palette.overlay
-    val Field = if (pureBlackSurfaces) pureBlack else palette.field
-    val Menu = if (pureBlackSurfaces) pureBlack else palette.menu
-    val Modal = if (pureBlackSurfaces) pureBlack else palette.modal
+    val Field =
+        if (lightMode) GlassLightKeys.field
+        else if (pureBlackSurfaces) pureBlack
+        else palette.field
+    val Menu =
+        if (lightMode) GlassLightKeys.menu
+        else if (pureBlackSurfaces) pureBlack
+        else palette.menu
+    val Modal =
+        if (lightMode) GlassLightKeys.modal
+        else if (pureBlackSurfaces) pureBlack
+        else palette.modal
     val PlayerOverlay = palette.playerOverlay
-    val Divider = NuvioPrimitives.neutral750
+    val Divider =
+        if (lightMode) GlassLightKeys.divider else NuvioPrimitives.neutral750
 
     val Primary = NuvioPrimitives.neutral500
     val PrimaryVariant = NuvioPrimitives.neutral650
@@ -128,15 +198,20 @@ class NuvioColorScheme(
     val OnSecondary = palette.onSecondary
     val OnSecondaryVariant = palette.onSecondaryVariant
 
-    val TextPrimary = NuvioPrimitives.white
-    val TextSecondary = NuvioPrimitives.neutral400
-    val TextTertiary = NuvioPrimitives.neutral600
-    val TextDisabled = NuvioPrimitives.neutral700
-    val TextInverse = NuvioPrimitives.neutral925
+    val TextPrimary = if (lightMode) GlassLightKeys.textPrimary else NuvioPrimitives.white
+    val TextSecondary =
+        if (lightMode) GlassLightKeys.textSecondary else NuvioPrimitives.neutral400
+    val TextTertiary =
+        if (lightMode) GlassLightKeys.textTertiary else NuvioPrimitives.neutral600
+    val TextDisabled =
+        if (lightMode) GlassLightKeys.textDisabled else NuvioPrimitives.neutral700
+    val TextInverse =
+        if (lightMode) NuvioPrimitives.white else NuvioPrimitives.neutral925
 
-    val FocusRing = palette.focusRing
-    val FocusBackground = palette.focusBackground
-    val FocusContent = NuvioPrimitives.white
+    val FocusRing = if (lightMode) GlassLightKeys.focusRing else palette.focusRing
+    val FocusBackground =
+        if (lightMode) GlassLightKeys.focusBackground else palette.focusBackground
+    val FocusContent = if (lightMode) GlassLightKeys.focusContent else NuvioPrimitives.white
     val FocusScrim = NuvioPrimitives.black.copy(alpha = 0.32f)
 
     val Rating = NuvioPrimitives.rating
@@ -150,9 +225,10 @@ class NuvioColorScheme(
     val Torrent = NuvioPrimitives.torrent
     val Premium = NuvioPrimitives.premium
 
-    val Border = NuvioPrimitives.neutral750
+    val Border = if (lightMode) GlassLightKeys.divider else NuvioPrimitives.neutral750
     val BorderFocused = FocusRing
-    val BorderMuted = NuvioPrimitives.neutral750.copy(alpha = 0.58f)
+    val BorderMuted = if (lightMode) GlassLightKeys.divider else
+        NuvioPrimitives.neutral750.copy(alpha = 0.58f)
 
     val Scrim = NuvioPrimitives.black.copy(alpha = 0.62f)
     val ImageScrim = NuvioPrimitives.black.copy(alpha = 0.58f)
