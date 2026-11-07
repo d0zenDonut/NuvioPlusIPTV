@@ -1343,6 +1343,9 @@ open class MainActivity : ComponentActivity() {
                                 val homeLayoutForChrome by layoutPreferenceDataStore.selectedLayout
                                     .collectAsState(initial = HomeLayout.MODERN)
                                 val glassHomeActive = homeLayoutForChrome == HomeLayout.GLASS
+                                // Settings is a glass screen too - the reference has no rail
+                                // beside it - so it gets the same chrome: hidden, then LEFT.
+    val glassChromeActive = glassHomeActive || currentRoute == Screen.Settings.route
                                 if (modernSidebarEnabled) {
                                     ModernSidebarScaffold(
                                         longPressBackHeld = longPressBackHeld,
@@ -1355,7 +1358,7 @@ open class MainActivity : ComponentActivity() {
                                         selectedDrawerItem = selectedDrawerItem,
                                         sidebarCollapsed = sidebarCollapsed,
                                         modernSidebarBlurEnabled = modernSidebarBlurEnabled,
-                                        glassHomeActive = glassHomeActive,
+                                        glassHomeActive = glassChromeActive,
                                         hideBuiltInHeaders = hideBuiltInHeadersForFloatingPill,
                                         activeProfileName = activeProfile?.name ?: "",
                                         activeProfileColorHex = activeProfile?.avatarColorHex ?: "#1E88E5",
@@ -1381,7 +1384,7 @@ open class MainActivity : ComponentActivity() {
                                         drawerItems = drawerItems,
                                         selectedDrawerRoute = selectedDrawerRoute,
                                         sidebarCollapsed = sidebarCollapsed,
-                                        glassHomeActive = glassHomeActive,
+                                        glassHomeActive = glassChromeActive,
                                         hideBuiltInHeaders = false,
                                         activeProfileName = activeProfile?.name ?: "",
                                         activeProfileColorHex = activeProfile?.avatarColorHex ?: "#1E88E5",
@@ -1664,7 +1667,9 @@ private fun LegacySidebarScaffold(
     // removed: this only suppresses the drawing.
     var glassSidebarRevealed by remember { mutableStateOf(false) }
     LaunchedEffect(glassHomeActive, currentRoute) {
-        if (!glassHomeActive || currentRoute !in rootRoutes) glassSidebarRevealed = false
+        // A route change closes the revealed rail: it is an overlay, not chrome. Without this,
+        // entering Settings from the rail left the rail painted over the glass settings screen.
+        glassSidebarRevealed = false
     }
     val sidebarDrawn = !glassHomeActive || glassSidebarRevealed
 
@@ -1674,7 +1679,11 @@ private fun LegacySidebarScaffold(
     }
 
     val sidebarTokens = NuvioComponents.tokens.sidebar
-    val closedDrawerWidth = if (sidebarCollapsed) NuvioTheme.spacing.none else sidebarTokens.legacyCollapsedWidth
+    val closedDrawerWidth = if (sidebarCollapsed || !sidebarDrawn) {
+        NuvioTheme.spacing.none
+    } else {
+        sidebarTokens.legacyCollapsedWidth
+    }
     val openDrawerWidth = sidebarTokens.legacyExpandedWidth
     val openDrawerItemWidth = sidebarTokens.itemWidth
 
@@ -1951,7 +1960,9 @@ private fun LegacySidebarScaffold(
         }
     ) {
         val contentStartPadding by animateDpAsState(
-            targetValue = if (showSidebar && !sidebarCollapsed) {
+            // The offset only reserves room for a rail that is actually painted. Leaving it in
+            // place while Glass hides the rail opened a black gutter down the left edge.
+            targetValue = if (showSidebar && !sidebarCollapsed && sidebarDrawn) {
                 NuvioLayout.tokens.sidebarContentOffset
             } else {
                 NuvioTheme.spacing.none
@@ -2202,11 +2213,17 @@ private fun ModernSidebarScaffold(
     // removed: this only suppresses the default rendering.
     var glassSidebarRevealed by remember { mutableStateOf(false) }
     LaunchedEffect(glassHomeActive, currentRoute) {
-        if (!glassHomeActive || currentRoute !in rootRoutes) glassSidebarRevealed = false
+        // A route change closes the revealed rail: it is an overlay, not chrome. Without this,
+        // entering Settings from the rail left the rail painted over the glass settings screen.
+        glassSidebarRevealed = false
     }
     val sidebarDrawn = !glassHomeActive || glassSidebarRevealed
     val sidebarTokens = NuvioComponents.tokens.sidebar
-    val collapsedSidebarWidth = if (sidebarCollapsed) NuvioTheme.spacing.none else sidebarTokens.collapsedWidth
+    val collapsedSidebarWidth = if (sidebarCollapsed || !sidebarDrawn) {
+        NuvioTheme.spacing.none
+    } else {
+        sidebarTokens.collapsedWidth
+    }
     val openSidebarWidth = sidebarTokens.expandedWidth
 
     val focusManager = LocalFocusManager.current
