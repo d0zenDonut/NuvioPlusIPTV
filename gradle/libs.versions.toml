@@ -45,6 +45,13 @@ uiautomator = "2.3.0"
 profileinstaller = "1.4.1"
 baselineProfilePlugin = "1.4.1"
 
+# Liquid-glass engine (tvOS-27 reskin)
+# 1.0.6 is the Android-only AAR line (androidx.compose 1.10.3), which keeps us on
+# AGP 8.x. The 2.x line is Compose-Multiplatform (org.jetbrains.compose 1.12.0)
+# and hard-requires AGP >= 9.1.0, which this app's build does not use.
+kyantBackdrop = "1.0.6"
+kyantShapes = "1.2.0"
+
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
@@ -139,6 +146,10 @@ androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version
 androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTestRunner" }
 androidx-test-uiautomator = { group = "androidx.test.uiautomator", name = "uiautomator", version.ref = "uiautomator" }
 androidx-profileinstaller = { group = "androidx.profileinstaller", name = "profileinstaller", version.ref = "profileinstaller" }
+
+# Liquid-glass engine (tvOS-27 reskin)
+kyant-backdrop = { group = "io.github.kyant0", name = "backdrop", version.ref = "kyantBackdrop" }
+kyant-shapes = { group = "io.github.kyant0", name = "shapes", version.ref = "kyantShapes" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

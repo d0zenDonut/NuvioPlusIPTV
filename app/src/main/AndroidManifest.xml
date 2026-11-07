@@ -123,6 +123,8 @@
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
+            android:stateNotNeeded="true"
+            android:alwaysRetainTaskState="true"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|density|uiMode|keyboard|keyboardHidden|navigation|layoutDirection|fontScale|locale"
             android:theme="@style/Theme.MyApplication.Launcher">
             <intent-filter>
@@ -140,6 +142,20 @@
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data android:scheme="stremio" />
+            </intent-filter>
+
+            <!--
+              HOME launcher entry point. Kept as a separate filter from the branding
+              LAUNCHER activities (.launcher.AppIcon*) so the activity is offered as a
+              system home app without also being registered as a second drawer entry.
+              Verified with:
+                adb shell cmd package set-home-activity com.nuvio.livetv/.MainActivity
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
 

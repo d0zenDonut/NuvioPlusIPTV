@@ -529,6 +529,11 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.androidx.tv.material)
     implementation(libs.androidx.tvprovider)
+
+    // tvOS-27 glass UI primitives (tile / dock / row / glyph / glass surface).
+    // The module's `api` dependencies on io.github.kyant0 backdrop+shapes are exported
+    // transitively, so the app compiles against Backdrop without declaring it again.
+    implementation(project(":lgframework"))
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation("androidx.activity:activity-compose:1.11.0")
 

@@ -50,6 +50,7 @@ import com.nuvio.tv.ui.components.LoadingIndicator
 import com.nuvio.tv.ui.components.PosterCardDefaults
 import com.nuvio.tv.ui.components.PosterCardStyle
 import com.nuvio.tv.ui.screens.home.ClassicHomeContent
+import com.nuvio.tv.ui.screens.home.GlassHomeContent
 import com.nuvio.tv.ui.screens.home.GridHomeContent
 import com.nuvio.tv.ui.screens.home.GridItem
 import com.nuvio.tv.domain.model.HomeLayout
@@ -430,6 +431,12 @@ fun OnDemandHomeScreen(
                     onFocusedRowKeyChanged = {},
                     scrollToTopTrigger = 0,
                     onRequestLazyCatalogLoad = {}
+                )
+
+                HomeLayout.GLASS -> GlassHomeContent(
+                    uiState = ui,
+                    onNavigateToDetail = onNavigateToDetail,
+                    onNavigateToCatalogSeeAll = loadMore
                 )
             }
         }

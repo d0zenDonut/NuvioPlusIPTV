@@ -46,6 +46,7 @@ import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.nuvio.tv.domain.model.HomeLayout
 import com.nuvio.tv.ui.components.ClassicLayoutPreview
+import com.nuvio.tv.ui.components.GlassLayoutPreview
 import com.nuvio.tv.ui.components.GridLayoutPreview
 import com.nuvio.tv.ui.components.ModernLayoutPreview
 import com.nuvio.tv.ui.screens.settings.LayoutSettingsEvent
@@ -122,6 +123,13 @@ fun LayoutSelectionScreen(
                     layout = HomeLayout.CLASSIC,
                     isSelected = selectedLayout == HomeLayout.CLASSIC,
                     onSelect = { selectedLayout = HomeLayout.CLASSIC },
+                    modifier = Modifier.weight(1f)
+                )
+
+                LayoutOptionCard(
+                    layout = HomeLayout.GLASS,
+                    isSelected = selectedLayout == HomeLayout.GLASS,
+                    onSelect = { selectedLayout = HomeLayout.GLASS },
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -217,6 +225,9 @@ private fun LayoutOptionCard(
                         HomeLayout.MODERN -> ModernLayoutPreview(
                             modifier = Modifier.fillMaxSize()
                         )
+                        HomeLayout.GLASS -> GlassLayoutPreview(
+                            modifier = Modifier.fillMaxSize()
+                        )
                     }
                 }
 
@@ -227,6 +238,7 @@ private fun LayoutOptionCard(
                         HomeLayout.CLASSIC -> stringResource(R.string.layout_classic)
                         HomeLayout.GRID -> stringResource(R.string.layout_grid)
                         HomeLayout.MODERN -> stringResource(R.string.layout_modern)
+                        HomeLayout.GLASS -> stringResource(R.string.layout_glass)
                     },
                     style = MaterialTheme.typography.titleLarge,
                     color = if (isSelected || isFocused) NuvioTheme.colors.TextPrimary else NuvioTheme.colors.TextSecondary
@@ -239,6 +251,7 @@ private fun LayoutOptionCard(
                     HomeLayout.CLASSIC -> stringResource(R.string.layout_classic_desc)
                     HomeLayout.GRID -> stringResource(R.string.layout_grid_desc)
                     HomeLayout.MODERN -> stringResource(R.string.layout_modern_desc)
+                    HomeLayout.GLASS -> stringResource(R.string.layout_glass_desc)
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = NuvioTheme.colors.TextTertiary

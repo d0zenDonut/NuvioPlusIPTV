@@ -407,6 +407,12 @@ fun HomeScreen(
                                 isCatalogItemWatched = isCatalogItemWatched,
                                 onCatalogItemLongPress = onCatalogItemLongPress
                             )
+
+                            HomeLayout.GLASS -> GlassHomeRoute(
+                                uiState = uiState,
+                                onNavigateToDetail = onNavigateToDetailStable,
+                                onNavigateToCatalogSeeAll = onNavigateToCatalogSeeAllStable
+                            )
                         }
                     }
                 }
@@ -717,6 +723,25 @@ private fun ModernHomeRoute(
         onRequestLazyCatalogLoad = remember(viewModel) {
             { catalogKey: String -> viewModel.requestLazyCatalogLoad(catalogKey) }
         }
+    )
+}
+
+/**
+ * tvOS-27 glass layout route.
+ *
+ * Deliberately thin: the glass layout binds straight to already-produced [HomeUiState] and
+ * only needs navigation callbacks, so none of the catalog/trailer plumbing is duplicated.
+ */
+@Composable
+private fun GlassHomeRoute(
+    uiState: HomeUiState,
+    onNavigateToDetail: (String, String, String) -> Unit,
+    onNavigateToCatalogSeeAll: (String, String, String) -> Unit
+) {
+    GlassHomeContent(
+        uiState = uiState,
+        onNavigateToDetail = onNavigateToDetail,
+        onNavigateToCatalogSeeAll = onNavigateToCatalogSeeAll
     )
 }
 

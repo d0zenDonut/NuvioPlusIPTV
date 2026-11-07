@@ -92,6 +92,7 @@ import com.nuvio.tv.domain.model.CardDepthSurface
 import com.nuvio.tv.ui.screens.home.ClassicFocusArtwork
 import com.nuvio.tv.ui.screens.home.ClassicFocusGradientBackdrop
 import com.nuvio.tv.ui.screens.home.ClassicHomeContent
+import com.nuvio.tv.ui.screens.home.GlassHomeContent
 import com.nuvio.tv.ui.screens.home.toClassicFocusArtwork
 import com.nuvio.tv.ui.screens.home.ContinueWatchingItem
 import com.nuvio.tv.ui.screens.home.GridHomeContent
@@ -1023,6 +1024,11 @@ private fun FollowLayoutContent(
             onFocusedRowKeyChanged = onFocusedRowKeyChanged,
             scrollToTopTrigger = scrollToTopTrigger,
             blockLeftOnFirstExpandedItem = true
+        )
+        HomeLayout.GLASS -> GlassHomeContent(
+            uiState = homeState,
+            onNavigateToDetail = onNavigateToDetail,
+            onNavigateToCatalogSeeAll = onLoadMoreCatalog
         )
     }
 }
