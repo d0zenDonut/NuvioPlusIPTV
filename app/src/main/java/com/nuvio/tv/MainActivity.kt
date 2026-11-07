@@ -177,6 +177,7 @@ import com.nuvio.tv.domain.model.CardDepthStyle
 import com.nuvio.tv.domain.model.CosmeticEntitlement
 import com.nuvio.tv.domain.model.DiscoverLocation
 import com.nuvio.tv.domain.model.ExperienceMode
+import com.nuvio.tv.domain.model.HomeLayout
 import com.nuvio.tv.domain.model.MemberAccess
 import com.nuvio.tv.domain.model.ProfileBackgroundSelection
 import com.nuvio.tv.domain.model.resolveProfileBackgroundSelection
@@ -1335,6 +1336,13 @@ open class MainActivity : ComponentActivity() {
                                 LocalNavViewModelStoreOwner provides navViewModelStoreOwner,
                                 com.nuvio.tv.livetv.ui.LocalSideMenuFit provides liveTvSettingsNow.sideMenuFit
                             ) {
+                                // Glass home brings its own navigation (the floating dock), so the
+                                // shell's sidebar steps aside *visually* while Glass is selected.
+                                // Nothing is removed: this only gates rendering, so switching the
+                                // home layout back restores the identical sidebar.
+                                val homeLayoutForChrome by layoutPreferenceDataStore.selectedLayout
+                                    .collectAsState(initial = HomeLayout.MODERN)
+                                val glassHomeActive = homeLayoutForChrome == HomeLayout.GLASS
                                 if (modernSidebarEnabled) {
                                     ModernSidebarScaffold(
                                         longPressBackHeld = longPressBackHeld,
@@ -1347,6 +1355,7 @@ open class MainActivity : ComponentActivity() {
                                         selectedDrawerItem = selectedDrawerItem,
                                         sidebarCollapsed = sidebarCollapsed,
                                         modernSidebarBlurEnabled = modernSidebarBlurEnabled,
+                                        glassHomeActive = glassHomeActive,
                                         hideBuiltInHeaders = hideBuiltInHeadersForFloatingPill,
                                         activeProfileName = activeProfile?.name ?: "",
                                         activeProfileColorHex = activeProfile?.avatarColorHex ?: "#1E88E5",
@@ -1372,6 +1381,7 @@ open class MainActivity : ComponentActivity() {
                                         drawerItems = drawerItems,
                                         selectedDrawerRoute = selectedDrawerRoute,
                                         sidebarCollapsed = sidebarCollapsed,
+                                        glassHomeActive = glassHomeActive,
                                         hideBuiltInHeaders = false,
                                         activeProfileName = activeProfile?.name ?: "",
                                         activeProfileColorHex = activeProfile?.avatarColorHex ?: "#1E88E5",
@@ -1637,6 +1647,7 @@ private fun LegacySidebarScaffold(
     onSwitchProfile: () -> Unit,
     onNavigate: (String) -> Unit,
     onExitApp: () -> Unit,
+    glassHomeActive: Boolean = false,
     onToggleLiveTvGroup: () -> Unit = {},
     onSidebarExpandedChange: (Boolean) -> Unit = {}
 ) {
@@ -1647,6 +1658,15 @@ private fun LegacySidebarScaffold(
     // grows), which is one of the menu's pages, so the menu has to step aside for it.
     val liveTvFullscreen by com.nuvio.tv.livetv.ui.LiveTvFullscreen.active.collectAsState()
     val showSidebar = currentRoute in rootRoutes && !liveTvFullscreen
+    // Glass home draws its own canvas (wallpaper, glass tiles, floating dock), so the shell's
+    // drawer is not painted while Glass is selected. It stays alive behind D-pad LEFT and
+    // long-press Back, so Settings and the other root screens stay reachable. Nothing is
+    // removed: this only suppresses the drawing.
+    var glassSidebarRevealed by remember { mutableStateOf(false) }
+    LaunchedEffect(glassHomeActive, currentRoute) {
+        if (!glassHomeActive || currentRoute !in rootRoutes) glassSidebarRevealed = false
+    }
+    val sidebarDrawn = !glassHomeActive || glassSidebarRevealed
 
     LaunchedEffect(currentRoute) {
         longPressBackHeld.value = false
@@ -1741,7 +1761,7 @@ private fun LegacySidebarScaffold(
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = { drawerValue ->
-            if (showSidebar) {
+            if (showSidebar && sidebarDrawn) {
                 val drawerWidth = if (drawerValue == DrawerValue.Open) openDrawerWidth else closedDrawerWidth
                 Box(
                     modifier = Modifier
@@ -1961,6 +1981,7 @@ private fun LegacySidebarScaffold(
                             if (!longPressBackHeld.value) {
                                 longPressBackHeld.value = true
                                 pendingSidebarFocusRequest = true
+                                glassSidebarRevealed = true
                                 drawerState.setValue(DrawerValue.Open)
                             }
                             return@onPreviewKeyEvent true
@@ -1984,6 +2005,7 @@ private fun LegacySidebarScaffold(
                             true
                         } else {
                             pendingSidebarFocusRequest = true
+                            glassSidebarRevealed = true
                             drawerState.setValue(DrawerValue.Open)
                             true
                         }
@@ -1997,6 +2019,7 @@ private fun LegacySidebarScaffold(
                 LocalContentFocusRequester provides contentFocusRequester,
                 LocalOpenSidebar provides {
                     pendingSidebarFocusRequest = true
+                    glassSidebarRevealed = true
                     drawerState.setValue(DrawerValue.Open)
                 }
             ) {
@@ -2165,6 +2188,7 @@ private fun ModernSidebarScaffold(
     onSwitchProfile: () -> Unit,
     onNavigate: (String) -> Unit,
     onExitApp: () -> Unit,
+    glassHomeActive: Boolean = false,
     onToggleLiveTvGroup: () -> Unit = {},
     onSidebarExpandedChange: (Boolean) -> Unit = {}
 ) {
@@ -2172,6 +2196,15 @@ private fun ModernSidebarScaffold(
     // grows), which is one of the menu's pages, so the menu has to step aside for it.
     val liveTvFullscreen by com.nuvio.tv.livetv.ui.LiveTvFullscreen.active.collectAsState()
     val showSidebar = currentRoute in rootRoutes && !liveTvFullscreen
+    // Glass home draws its own canvas (wallpaper, glass tiles, floating dock), so the shell's
+    // sidebar is not painted while Glass is selected. It stays alive behind D-pad LEFT and
+    // long-press Back, so Settings and the other root screens stay reachable. Nothing is
+    // removed: this only suppresses the default rendering.
+    var glassSidebarRevealed by remember { mutableStateOf(false) }
+    LaunchedEffect(glassHomeActive, currentRoute) {
+        if (!glassHomeActive || currentRoute !in rootRoutes) glassSidebarRevealed = false
+    }
+    val sidebarDrawn = !glassHomeActive || glassSidebarRevealed
     val sidebarTokens = NuvioComponents.tokens.sidebar
     val collapsedSidebarWidth = if (sidebarCollapsed) NuvioTheme.spacing.none else sidebarTokens.collapsedWidth
     val openSidebarWidth = sidebarTokens.expandedWidth
@@ -2392,6 +2425,21 @@ private fun ModernSidebarScaffold(
                     else Modifier
                 )
                 .onPreviewKeyEvent { keyEvent ->
+                    // Glass home: LEFT brings the hidden sidebar back, so the glass canvas stays
+                    // clean without stranding the user away from Settings.
+                    if (
+                        glassHomeActive &&
+                        !glassSidebarRevealed &&
+                        showSidebar &&
+                        keyEvent.type == KeyEventType.KeyDown &&
+                        keyEvent.key == Key.DirectionLeft
+                    ) {
+                        glassSidebarRevealed = true
+                        isSidebarExpanded = true
+                        sidebarCollapsePending = false
+                        pendingSidebarFocusRequest = true
+                        return@onPreviewKeyEvent true
+                    }
                     // Long-press Back on a root route directly opens the sidebar,
                     // bypassing the "scroll row to start" BackHandler in home content.
                     if (keyEvent.key == Key.Back) {
@@ -2479,7 +2527,7 @@ private fun ModernSidebarScaffold(
             }
         }
 
-        if (showSidebar && (sidebarVisible || sidebarShowExpandedPanel)) {
+        if (showSidebar && sidebarDrawn && (sidebarVisible || sidebarShowExpandedPanel)) {
             val panelShape = RoundedCornerShape(sidebarTokens.panelRadius)
             val showExpandedPanel = isSidebarExpanded || sidebarShowExpandedPanel
 
