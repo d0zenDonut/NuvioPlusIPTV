@@ -36,6 +36,26 @@ import com.lgframework.tv.ui.components.LgTile
 import com.lgframework.tv.ui.tokens.LgMetrics
 import com.nuvio.tv.domain.model.CatalogRow
 import com.nuvio.tv.domain.model.MetaPreview
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import com.lgframework.tv.ui.components.LgAppGlyph
+import com.lgframework.tv.ui.tokens.LgShapes
+import kotlinx.coroutines.launch
 
 /**
  * tvOS-27 liquid-glass home.
@@ -78,6 +98,16 @@ fun GlassHomeContent(
     val hero = uiState.heroItems.firstOrNull()
         ?: rows.firstOrNull()?.items?.firstOrNull()
 
+    // Row-to-row focus is driven explicitly: a nested LazyRow cannot hand focus to a LazyColumn
+    // item that has not been composed yet, which is why D-pad Down used to stop on row 1.
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    val rowFocusRequesters = remember(keyedRows.size) {
+        List(keyedRows.size) { FocusRequester() }
+    }
+    var focusedRowIndex by remember { mutableIntStateOf(0) }
+    val rowItemOffset = if (hero != null) 1 else 0
+
     // Dock icons are quick-jump shortcuts to the top catalogs; the routing payload is kept
     // beside the presentation model rather than inside it.
     // One dock slot per distinct catalog. Cinemeta serves "Popular" for both movie and series,
@@ -85,7 +115,12 @@ fun GlassHomeContent(
     val dockEntries = remember(rows) {
         rows.distinctBy { it.catalogName.trim().lowercase() }
             .take(7)
-            .mapIndexed { index, row -> LgDockEntry(row.toDockApp(index), row.toTarget()) }
+            .mapIndexed { index, row ->
+                // Dock icons are real artwork, not letter tiles: the reference shows bare
+                // icons sitting on the bar.
+                val art = row.items.firstOrNull()?.let { it.backdropUrl ?: it.poster }
+                LgDockEntry(row.toDockApp(index), row.toTarget(), art)
+            }
     }
 
     Box(
@@ -104,13 +139,34 @@ fun GlassHomeContent(
         }
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            state = listState,
+            // The dock floats over the wallpaper. Ending the viewport above it keeps row 2 from
+            // scrolling under the bar, where its labels collided with the glass.
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = LgMetrics.DockHeight + 52.dp)
+                .onPreviewKeyEvent { event ->
+                    if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                    val target = when (event.key) {
+                        Key.DirectionDown -> focusedRowIndex + 1
+                        Key.DirectionUp -> focusedRowIndex - 1
+                        else -> return@onPreviewKeyEvent false
+                    }
+                    if (target !in keyedRows.indices) return@onPreviewKeyEvent false
+                    focusedRowIndex = target
+                    // Scroll the target row in first, then move focus to its first tile.
+                    scope.launch {
+                        runCatching { listState.animateScrollToItem(rowItemOffset + target) }
+                        withFrameNanos { }
+                        runCatching { rowFocusRequesters[target].requestFocus() }
+                    }
+                    true
+                },
             contentPadding = PaddingValues(
                 start = LgMetrics.ScreenPadding,
                 end = LgMetrics.ScreenPadding,
                 top = 56.dp,
-                // Clear the floating dock.
-                bottom = LgMetrics.DockHeight + 72.dp
+                bottom = 16.dp
             ),
             verticalArrangement = Arrangement.spacedBy(LgMetrics.RowSpacing)
         ) {
@@ -120,9 +176,11 @@ fun GlassHomeContent(
                 }
             }
 
-            items(keyedRows, key = { it.key }) { keyed ->
+            itemsIndexed(keyedRows, key = { _, keyed -> keyed.key }) { index, keyed ->
                 GlassCatalogRow(
                     row = keyed.row,
+                    firstTileFocusRequester = rowFocusRequesters[index],
+                    onRowFocused = { focusedRowIndex = index },
                     onNavigateToDetail = onNavigateToDetail,
                     onNavigateToCatalogSeeAll = onNavigateToCatalogSeeAll
                 )
@@ -139,13 +197,28 @@ fun GlassHomeContent(
                 dockEntries.firstOrNull { it.app.id == app.id }?.target?.let { target ->
                     onNavigateToCatalogSeeAll(target.catalogId, target.addonId, target.apiType)
                 }
+            },
+            icon = { app, size ->
+                val art = dockEntries.firstOrNull { it.app.id == app.id }?.art
+                if (art == null) {
+                    LgAppGlyph(tint = app.tint, initial = app.initial, size = size)
+                } else {
+                    AsyncImage(
+                        model = art,
+                        contentDescription = app.name,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(size)
+                            .clip(LgShapes.glyph(size))
+                    )
+                }
             }
         )
     }
 }
 
 /** Presentation model plus the routing payload its dock icon launches. */
-private data class LgDockEntry(val app: LgApp, val target: LgCatalogTarget)
+private data class LgDockEntry(val app: LgApp, val target: LgCatalogTarget, val art: String?)
 
 /** A catalog row paired with its unique LazyColumn key. */
 private data class GlassKeyedRow(val row: CatalogRow, val key: String)
@@ -258,6 +331,8 @@ private fun GlassHeroHeader(hero: MetaPreview) {
 @Composable
 private fun GlassCatalogRow(
     row: CatalogRow,
+    firstTileFocusRequester: FocusRequester,
+    onRowFocused: () -> Unit,
     onNavigateToDetail: (String, String, String) -> Unit,
     onNavigateToCatalogSeeAll: (String, String, String) -> Unit
 ) {
@@ -294,15 +369,21 @@ private fun GlassCatalogRow(
         Spacer(Modifier.height(LgMetrics.TitleToRowSpacing))
 
         LazyRow(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-            items(keyedItems, key = { it.key }) { entry ->
+            itemsIndexed(keyedItems, key = { _, entry -> entry.key }) { index, entry ->
                 val item = entry.item
                 LgTile(
                     backdrop = backdrop,
                     app = item.toTileApp(row),
                     showLabel = true,
-                    modifier = Modifier.clickable {
-                        onNavigateToDetail(item.id, item.apiType, row.addonBaseUrl)
-                    },
+                    onFocusChange = { focused -> if (focused) onRowFocused() },
+                    modifier = Modifier
+                        .then(
+                            if (index == 0) Modifier.focusRequester(firstTileFocusRequester)
+                            else Modifier
+                        )
+                        .clickable {
+                            onNavigateToDetail(item.id, item.apiType, row.addonBaseUrl)
+                        },
                     glyph = {
                         AsyncImage(
                             model = item.backdropUrl ?: item.poster,

@@ -51,6 +51,7 @@ fun LgDock(
     itemSpacing: Dp = 26.dp,
     iconSize: Dp = 64.dp,
     onAppClick: (LgApp) -> Unit = {},
+    icon: (@Composable (LgApp, Dp) -> Unit)? = null,
 ) {
     Box(
         modifier = modifier.size(LgMetrics.DockWidth, LgMetrics.DockHeight),
@@ -78,6 +79,7 @@ fun LgDock(
                     app = app,
                     iconSize = iconSize,
                     onClick = { onAppClick(app) },
+                    icon = icon,
                 )
             }
         }
@@ -94,6 +96,7 @@ private fun LgDockItem(
     iconSize: Dp = 64.dp,
     onClick: () -> Unit = {},
     onFocusChange: (Boolean) -> Unit = {},
+    icon: (@Composable (LgApp, Dp) -> Unit)? = null,
 ) {
     var focused by remember { mutableStateOf(false) }
 
@@ -122,11 +125,15 @@ private fun LgDockItem(
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        LgAppGlyph(
-            tint = app.tint,
-            initial = app.initial,
-            size = iconSize,
-        )
+        if (icon != null) {
+            icon(app, iconSize)
+        } else {
+            LgAppGlyph(
+                tint = app.tint,
+                initial = app.initial,
+                size = iconSize,
+            )
+        }
     }
 }
 

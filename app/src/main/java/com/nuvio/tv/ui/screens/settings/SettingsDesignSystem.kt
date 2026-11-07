@@ -3,6 +3,8 @@
 package com.nuvio.tv.ui.screens.settings
 
 import com.nuvio.tv.ui.theme.NuvioTheme
+import com.lgframework.tv.ui.tokens.LgShapes
+import androidx.compose.ui.graphics.Shape
 
 import androidx.annotation.RawRes
 import androidx.compose.animation.animateColorAsState
@@ -149,16 +151,20 @@ internal fun settingsHeaderInset(): Dp = when (NuvioTheme.settingsUiStyle) {
 
 @Composable
 @androidx.compose.runtime.ReadOnlyComposable
-internal fun settingsRowShape(): RoundedCornerShape = when (NuvioTheme.settingsUiStyle) {
-    SettingsUiStyle.CLASSIC -> RoundedCornerShape(SettingsPillRadius)
-    SettingsUiStyle.ZEN -> SettingsZenRowShape
-    SettingsUiStyle.HORIZON -> SettingsHorizonRowShape
+internal fun settingsRowShape(): Shape = when (NuvioTheme.settingsUiStyle) {
+    // Continuous curvature everywhere: Apple corners are squircles, and a circular arc of the
+    // same nominal radius reads visibly boxier (see LGFramework docs/SPEC.md). CLASSIC was a
+    // pill, so it maps to the capsule; ZEN/HORIZON were 12/10dp arcs, so they map to the 14dp
+    // continuous row shape.
+    SettingsUiStyle.CLASSIC -> LgShapes.Capsule
+    SettingsUiStyle.ZEN -> LgShapes.Row
+    SettingsUiStyle.HORIZON -> LgShapes.Row
 }
 
 @Composable
 @androidx.compose.runtime.ReadOnlyComposable
-internal fun settingsTallRowShape(): RoundedCornerShape =
-    if (isFlatSettingsStyle()) settingsRowShape() else RoundedCornerShape(SettingsSecondaryCardRadius)
+internal fun settingsTallRowShape(): Shape =
+    if (isFlatSettingsStyle()) settingsRowShape() else LgShapes.Panel
 
 @Composable
 internal fun settingsRowColors(): CardColors = if (isFlatSettingsStyle()) {
@@ -168,15 +174,17 @@ internal fun settingsRowColors(): CardColors = if (isFlatSettingsStyle()) {
     )
 } else {
     CardDefaults.colors(
-        containerColor = NuvioTheme.colors.Background,
-        focusedContainerColor = NuvioTheme.colors.Background
+        // Translucent plate: the settings shell sits over the wallpaper, so the surface has to
+        // let it through the way the reference glass does.
+        containerColor = NuvioTheme.colors.Background.copy(alpha = 0.55f),
+        focusedContainerColor = NuvioTheme.colors.Background.copy(alpha = 0.72f)
     )
 }
 
 @Composable
 internal fun settingsRowBorder(
     contentAlpha: Float = 1f,
-    shape: RoundedCornerShape = settingsRowShape()
+    shape: Shape = settingsRowShape()
 ): CardBorder = if (isFlatSettingsStyle()) {
     CardDefaults.border(border = Border.None, focusedBorder = Border.None)
 } else {
